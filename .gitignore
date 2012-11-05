@@ -1,4 +1,6 @@
-
+.project
+.cproject
+*.swp
 /lib/
 /bin/
 /build*/

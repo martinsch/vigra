@@ -423,6 +423,7 @@ public:
 	int min_size_;
 
 	int max_depth_reached; //for debug maximum reached depth
+   int max_region_depth_;
 
 	DepthAndSizeStopping() : max_depth_(-1),min_size_(0)
 	{
@@ -435,7 +436,7 @@ public:
      */
 
 	DepthAndSizeStopping(int depth, int size) :
-		max_depth_(depth), min_size_(size)
+		max_depth_(depth), min_size_(size), max_region_depth_(0)
 	{	}
 
 	template<class T>
@@ -447,11 +448,17 @@ public:
 	bool operator()(Region& region)
 	{
 
-		if (region.depth() > max_depth_ + 1)
+		if ((region.depth() > max_depth_ + 1) && (max_depth_ != -1)) {
+         std::cerr << "region.depth() = " << region.depth() << ", max_depth_ = " << max_depth_ << std::endl;
 		   throw std::runtime_error("violation in the stopping criterion");
+      }
 
-
-		return (region.depth() > max_depth_) || (region.size() < min_size_) ;
+      if (region.depth() > max_region_depth_) {
+         max_region_depth_ = region.depth();
+         std::cerr << "max_region_depth_ = " << max_region_depth_ << std::endl;
+      }
+      //std::cerr << "region.depth() = " << region.depth() << ", region.size() = " << region.size() << std::endl;
+		return ( ((max_depth_ != -1) && (region.depth() > max_depth_)) || (region.size() < min_size_) );
 
 	}
 
@@ -461,6 +468,10 @@ public:
 	{
 		return true;
 	}
+
+   int get_max_region_depth() {
+      return max_region_depth_;
+   }
 };
 
 

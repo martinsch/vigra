@@ -18,7 +18,7 @@
 /*    Software is furnished to do so, subject to the following          */
 /*    conditions:                                                       */
 /*                                                                      */
-/*    The above copyrigfht notice and this permission notice shall be    */
+/*    The above copyright notice and this permission notice shall be    */
 /*    included in all copies or substantial portions of the             */
 /*    Software.                                                         */
 /*                                                                      */
@@ -143,8 +143,8 @@ double
 pythonLearnRandomForest(RandomForest<LabelType> & rf, 
                         NumpyArray<2,FeatureType> trainData, 
                         NumpyArray<2,LabelType> trainLabels,
-                        int maxdepth=-1,
-                        int minsize=0)
+                        int maxDepth=-1,
+                        int minSize=0)
 {
     vigra_precondition(!trainData.axistags() && !trainLabels.axistags(),
                        "RandomForest.learnRF(): training data and labels must not\n"
@@ -152,15 +152,18 @@ pythonLearnRandomForest(RandomForest<LabelType> & rf,
     
     using namespace rf;
     visitors::OOB_Error oob_v;
+   
+    std::cerr << "pythonLearnRandomForest maxDepth= " << maxDepth << ", minSize = " << minSize << std::endl;
 
-
-    vigra::DepthAndSizeStopping earlystop(maxdepth,minsize);
+    vigra::DepthAndSizeStopping earlystop(maxDepth,minSize);
     {
         PyAllowThreads _pythread;
         rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v),vigra::rf_default(),earlystop);
+  //         rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v));
     }
     double oob = oob_v.oob_breiman;
-
+    
+    std::cerr << "oob = " << oob << ", depth = " << earlystop.get_max_region_depth() << std::endl;
     //std::cout << "out of bag: " << oob << std::endl;
     return oob;
 }
@@ -219,7 +222,8 @@ template<class LabelType, class FeatureType>
 NumpyAnyArray 
 pythonRFPredictProbabilities(RandomForest<LabelType> & rf,
                              NumpyArray<2,FeatureType> testData, 
-                             NumpyArray<2,float> res)
+                             NumpyArray<2,float> res,
+                             float stopAfterVoteCount=1.0)
 {
     vigra_precondition(!testData.axistags() && !res.axistags(),
                        "RandomForest.predictProbabilities(): test data and output array must not\n"
@@ -227,9 +231,15 @@ pythonRFPredictProbabilities(RandomForest<LabelType> & rf,
     
     res.reshapeIfEmpty(MultiArrayShape<2>::type(testData.shape(0), rf.ext_param_.class_count_),
                        "RandomForest.predictProbabilities(): Output array has wrong dimensions.");
+
     {
         PyAllowThreads _pythread;
-        rf.predictProbabilities(testData, res);
+        if (stopAfterVoteCount < 1.0) {            
+            StopAfterVoteCount earlyStopping(stopAfterVoteCount);
+            rf.predictProbabilities(testData, res, earlyStopping);
+        } else {
+            rf.predictProbabilities(testData, res);
+        }
     }
     return res;
 }
@@ -331,7 +341,7 @@ void defineRandomForest()
              "The output is an array containing a labels for every test samples.\n")
         .def("predictProbabilities",
              registerConverters(&pythonRFPredictProbabilities<UInt32,float>),
-             (arg("testData"), arg("out")=object()),
+             (arg("testData"), arg("out")=object(), arg("stopAfterVoteCount")=1.0),
              "Predict probabilities for different classes on 'testData'.\n\n"
              "The output is an array containing a probability for every test sample and class.\n")
         .def("predictProbabilities",
@@ -366,7 +376,7 @@ void defineRandomForest()
              "Store the random forest in the given HDF5 file 'filname' under the internal\n"
              "path 'pathInFile'.\n")
 #endif // HasHDF5
-        ;
+   ;
 }
 
 } // namespace vigra

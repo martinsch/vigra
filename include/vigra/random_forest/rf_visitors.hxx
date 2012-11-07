@@ -875,7 +875,7 @@ public:
 		if (leftChild.size() == 0) { // parent is a leaf node
 			vigra_assert(rightChild.size()==0,
 					"leftChild has zero size, but rightChilde has positive size -- not a leaf node!");
-			depths_.push_back(parent.depth());
+			depths_.push_back(parent.depth() + 1);
 			sizes_.push_back(parent.size());
 		}
 

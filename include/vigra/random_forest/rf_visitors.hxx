@@ -838,6 +838,70 @@ public:
     
 };
 
+class DepthAndSize_Statistics : public VisitorBase
+{
+	ArrayVector<int> depths_;
+	ArrayVector<int> sizes_;
+	ArrayVector<int> tree_depths_;
+
+public:
+	double median_leaf_size_;
+	double mean_tree_depth_;
+
+	DepthAndSize_Statistics() : VisitorBase() , median_leaf_size_(0), mean_tree_depth_(0){}
+
+	template<class RF, class PR>
+	void visit_at_beginning(RF & rf, PR & pr)
+	{
+		// do nothing
+	}
+
+	template<class RF, class PR, class SM, class ST>
+	void visit_after_tree(RF& rf, PR & pr,  SM & sm, ST & st, int index)
+	{
+		tree_depths_.push_back(*std::max_element(depths_.begin(),depths_.end()));
+		depths_.clear();
+	}
+
+	template<class Tree, class Split, class Region, class Feature_t, class Label_t>
+	void visit_after_split( Tree          & tree,
+							Split         & split,
+							Region       & parent,
+							Region        & leftChild,
+							Region        & rightChild,
+							Feature_t     & features,
+							Label_t       & labels)
+	{
+		if (leftChild.size() == 0) { // parent is a leaf node
+			vigra_assert(rightChild.size()==0,
+					"leftChild has zero size, but rightChilde has positive size -- not a leaf node!");
+			depths_.push_back(parent.depth());
+			sizes_.push_back(parent.size());
+		}
+
+	}
+
+	template<class RF, class PR>
+	void visit_at_end(RF & rf, PR & pr)
+	{
+		// compute median of the leaf node sizes
+		size_t len = sizes_.size();
+		std::sort(sizes_.begin(), sizes_.end());
+		if (len % 2 == 0) {
+			median_leaf_size_ = (sizes_[len/2-1] + sizes_[len/2]) /2;
+		} else {
+			median_leaf_size_ = sizes_[len/2];
+		}
+
+		// compute mean of the tree depths
+		for (ArrayVector<int>::const_iterator it = tree_depths_.begin(); it != tree_depths_.end(); ++it) {
+			mean_tree_depth_ += *it;
+		}
+		mean_tree_depth_ /= double(tree_depths_.size());
+	}
+};
+
+
 /** Visitor that calculates the oob error of the ensemble
  *  This rate should be used to estimate the crossvalidation 
  *  error rate.

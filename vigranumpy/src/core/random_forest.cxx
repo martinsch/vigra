@@ -140,8 +140,8 @@ pythonLearnRandomForestWithFeatureSelection(RandomForest<LabelType> & rf,
 
 template<class LabelType, class FeatureType>
 double
-pythonLearnRandomForest(RandomForest<LabelType> & rf, 
-                        NumpyArray<2,FeatureType> trainData, 
+pythonLearnRandomForest(RandomForest<LabelType> & rf,
+                        NumpyArray<2,FeatureType> trainData,
                         NumpyArray<2,LabelType> trainLabels,
                         int maxDepth=-1,
                         int minSize=0)
@@ -149,23 +149,56 @@ pythonLearnRandomForest(RandomForest<LabelType> & rf,
     vigra_precondition(!trainData.axistags() && !trainLabels.axistags(),
                        "RandomForest.learnRF(): training data and labels must not\n"
                        "have axistags (use 'array.view(numpy.ndarray)' to remove them).");
-    
+
     using namespace rf;
     visitors::OOB_Error oob_v;
-   
+
     std::cerr << "pythonLearnRandomForest maxDepth= " << maxDepth << ", minSize = " << minSize << std::endl;
 
-    vigra::DepthAndSizeStopping earlystop(maxDepth,minSize);
-    {
-        PyAllowThreads _pythread;
-        rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v),vigra::rf_default(),earlystop);
-  //         rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v));
+    if (maxDepth != -1 || minSize != 0) {
+		vigra::DepthAndSizeStopping earlystop(maxDepth,minSize);
+		PyAllowThreads _pythread;
+		rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v),vigra::rf_default(),earlystop);
+    } else {
+    	PyAllowThreads _pythread;
+    	rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v));
     }
+
     double oob = oob_v.oob_breiman;
-    
-    std::cerr << "oob = " << oob << ", depth = " << earlystop.get_max_region_depth() << std::endl;
-    //std::cout << "out of bag: " << oob << std::endl;
+
     return oob;
+}
+
+template<class LabelType, class FeatureType>
+python::tuple
+pythonLearnRandomForestWithTreeStatistics(RandomForest<LabelType> & rf,
+                        NumpyArray<2,FeatureType> trainData,
+                        NumpyArray<2,LabelType> trainLabels,
+                        int maxDepth=-1,
+                        int minSize=0)
+{
+    vigra_precondition(!trainData.axistags() && !trainLabels.axistags(),
+                       "RandomForest.learnRF(): training data and labels must not\n"
+                       "have axistags (use 'array.view(numpy.ndarray)' to remove them).");
+
+    using namespace rf;
+    visitors::OOB_Error oob_v;
+    visitors::DepthAndSize_Statistics stats;
+
+    if (maxDepth != -1 || minSize != 0) {
+		vigra::DepthAndSizeStopping earlystop(maxDepth,minSize);
+		PyAllowThreads _pythread;
+		rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v,stats),vigra::rf_default(),earlystop);
+    } else {
+    	PyAllowThreads _pythread;
+    	rf.learn(trainData, trainLabels, visitors::create_visitor(oob_v,stats));
+    }
+
+    double oob = oob_v.oob_breiman;
+	double median_leaf_size = stats.median_leaf_size_;
+	double mean_tree_depth = stats.mean_tree_depth_;
+
+    return python::make_tuple(oob, median_leaf_size, mean_tree_depth);
 }
 
 template<class LabelType,class FeatureType>
@@ -352,7 +385,13 @@ void defineRandomForest()
              registerConverters(&pythonLearnRandomForest<UInt32,float>),
              (arg("trainData"), arg("trainLabels"),arg("maxDepth")=-1,arg("minSize")=0),
              "Trains a random Forest using 'trainData' and 'trainLabels'.\n\n"
-             "and returns the OOB. max Depth is the max depth reachable for the tree and minSize forbid splitting if the node is smaller than minSize\n")
+             "and returns the OOB. maxDepth is the max depth reachable for the tree and minSize forbid splitting if the node is smaller than minSize\n")
+		 .def("learnRFWithTreeStats",
+			  registerConverters(&pythonLearnRandomForestWithTreeStatistics<UInt32,float>),
+			  (arg("trainData"), arg("trainLabels"),arg("maxDepth")=-1,arg("minSize")=0),
+			  "Trains a random Forest using 'trainData' and 'trainLabels'.\n\n"
+			  "and returns the OOB, tree depths and median leaf node sizes."
+			  "maxDepth is the max depth reachable for the tree and minSize forbid splitting if the node is smaller than minSize\n")
         .def("reLearnTree",
              registerConverters(&pythonRFReLearnTree<UInt32,float>),
             (arg("trainData"), arg("trainLabels"), arg("treeId")),

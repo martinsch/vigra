@@ -94,7 +94,7 @@ namespace vigra {
     is no longer needed, the appropriate close function must be called. However, if a function is 
     aborted by an exception, this is difficult to ensure. Class HDF5Handle is a smart pointer that 
     solves this problem by calling the close function in the destructor (This is analogous to how 
-    std::auto_ptr calls 'delete' on the contained pointer). A pointer to the close function must be 
+    VIGRA_UNIQUE_PTR calls 'delete' on the contained pointer). A pointer to the close function must be 
     passed to the constructor, along with an error message that is raised when creation/opening fails. 
     
     Since HDF5Handle objects are convertible to hid_t, they can be used in the code in place 
@@ -160,7 +160,7 @@ public:
     }
 
         /** \brief Copy constructor.
-            Hands over ownership of the RHS handle (analogous to std::auto_ptr).
+            Hands over ownership of the RHS handle (analogous to VIGRA_UNIQUE_PTR).
         */
     HDF5Handle(HDF5Handle const & h)
     : handle_( h.handle_ ),
@@ -171,7 +171,7 @@ public:
     
         /** \brief Assignment.
             Calls close() for the LHS handle and hands over ownership of the 
-            RHS handle (analogous to std::auto_ptr).
+            RHS handle (analogous to VIGRA_UNIQUE_PTR).
         */
     HDF5Handle & operator=(HDF5Handle const & h)
     {
@@ -312,6 +312,12 @@ class HDF5ImportInfo
     VIGRA_EXPORT MultiArrayIndex numDimensions() const;
 
         /** Get the shape of the dataset represented by this info object.
+            
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This function therefore reverses the axis
+            order relative to the file contents. That is, when the axes in the file are 
+            ordered as 'z', 'y', 'x', this function will return the shape in the order
+            'x', 'y', 'z'.
          */
     VIGRA_EXPORT ArrayVector<hsize_t> const & shape() const
     {
@@ -319,6 +325,12 @@ class HDF5ImportInfo
     }
 
         /** Get the shape (length) of the dataset along dimension \a dim.
+            
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This function therefore reverses the axis
+            order relative to the file contents. That is, when the axes in the file are 
+            ordered as 'z', 'y', 'x', this function will return the shape in the order
+            'x', 'y', 'z'.
          */
     VIGRA_EXPORT MultiArrayIndex shapeOfDimension(const int dim) const;
 
@@ -476,6 +488,11 @@ string attributes can be attached to any dataset or group. Group- or dataset-han
 are encapsulated in the class and managed automatically. The internal file-system like
 structure can be accessed by functions like "cd()" or "mkdir()".
 
+Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+Fortran-order, while HDF5 uses C-order. This means that a VIGRA MultiArray,
+whose indices represent the 'x'-, 'y'-, and 'z'-axis in that order, is reversed
+upon writing to an HDF5 file, i.e. in the file the axis order is 'z', 'y', 'x'. 
+Likewise, the order is reversed upon reading.
 
 <b>Example:</b>
 Write the MultiArray out_multi_array to file. Change the current directory to
@@ -547,7 +564,8 @@ class HDF5File
         */
     enum OpenMode {
         New,           // Create new empty file (existing file will be deleted).
-        Open           // Open file. Create if not existing.
+        Open,          // Open file. Create if not existing.
+        OpenReadOnly   // Open file in read-only mode.
     };
 
         /** \brief Default constructor.
@@ -788,10 +806,17 @@ class HDF5File
     }
 
         /** \brief Get the shape of each dimension of a certain dataset.
-             Normally, this function is called after determining the dimension of the
-             dataset using \ref getDatasetDimensions().
-             If the first character is a "/", the path will be interpreted as absolute path,
-             otherwise it will be interpreted as path relative to the current group.
+            
+           Normally, this function is called after determining the dimension of the
+            dataset using \ref getDatasetDimensions().
+            If the first character is a "/", the path will be interpreted as absolute path,
+            otherwise it will be interpreted as path relative to the current group.
+            
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This function therefore reverses the axis
+            order relative to the file contents. That is, when the axes in the file are 
+            ordered as 'z', 'y', 'x', this function will return the shape in the order
+            'x', 'y', 'z'.
         */
     inline ArrayVector<hsize_t> getDatasetShape(std::string datasetName)
     {
@@ -1014,6 +1039,11 @@ class HDF5File
 
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a VIGRA MultiArray,
+            whose indices represent the 'x'-, 'y'-, and 'z'-axis in that order, is reversed
+            upon writing to an HDF5 file, i.e. in the file the axis order is 'z', 'y', 'x'. 
         */
     template<unsigned int N, class T>
     inline void write(std::string datasetName, const MultiArrayView<N, T, UnstridedArrayTag> & array, int iChunkSize = 0, int compression = 0)
@@ -1022,7 +1052,7 @@ class HDF5File
         datasetName = get_absolute_path(datasetName);
 
         typename MultiArrayShape<N>::type chunkSize;
-        for(int i = 0; i < N; i++){
+        for(unsigned int i = 0; i < N; i++){
             chunkSize[i] = iChunkSize;
         }
         write_(datasetName, array, detail::getH5DataType<T>(), 1, chunkSize, compression);
@@ -1039,6 +1069,11 @@ class HDF5File
 
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a VIGRA MultiArray,
+            whose indices represent the 'x'-, 'y'-, and 'z'-axis in that order, is reversed
+            upon writing to an HDF5 file, i.e. in the file the axis order is 'z', 'y', 'x'. 
         */
     template<unsigned int N, class T>
     inline void write(std::string datasetName, const MultiArrayView<N, T, UnstridedArrayTag> & array, typename MultiArrayShape<N>::type chunkSize, int compression = 0)
@@ -1062,6 +1097,11 @@ class HDF5File
 
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a VIGRA MultiArray,
+            whose indices represent the 'x'-, 'y'-, and 'z'-axis in that order, is reversed
+            upon writing to an HDF5 file, i.e. in the file the axis order is 'z', 'y', 'x'. 
         */
     template<unsigned int N, class T>
     inline void writeBlock(std::string datasetName, typename MultiArrayShape<N>::type blockOffset, const MultiArrayView<N, T, UnstridedArrayTag> & array)
@@ -1180,8 +1220,13 @@ class HDF5File
     // Reading data
 
         /** \brief Read data into a multi array.
-          If the first character of datasetName is a "/", the path will be interpreted as absolute path,
-          otherwise it will be interpreted as path relative to the current group.
+            If the first character of datasetName is a "/", the path will be interpreted as absolute path,
+            otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a HDF5 dataset,
+            whose indices represent the 'z'-, 'y'-, and 'x'-axis in that order, is reversed
+            upon reading into a MultiArrayView, i.e. in the array axis order must be 'x', 'y', 'z'. 
         */
     template<unsigned int N, class T>
     inline void read(std::string datasetName, MultiArrayView<N, T, UnstridedArrayTag> & array)
@@ -1195,6 +1240,11 @@ class HDF5File
         /** \brief Read data into a MultiArray. Resize MultiArray to the correct size.
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a HDF5 dataset,
+            whose indices represent the 'z'-, 'y'-, and 'x'-axis in that order, is reversed
+            upon reading into a MultiArray, i.e. in the array axis order will be 'x', 'y', 'z'. 
         */
     template<unsigned int N, class T>
     inline void readAndResize(std::string datasetName, MultiArray<N, T> & array)
@@ -1267,6 +1317,11 @@ class HDF5File
 
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a HDF5 dataset,
+            whose indices represent the 'z'-, 'y'-, and 'x'-axis in that order, is reversed
+            upon reading into a MultiArray, i.e. in the array axis order will be 'x', 'y', 'z'. 
         */
     template<unsigned int N, class T>
     inline void readBlock(std::string datasetName, typename MultiArrayShape<N>::type blockOffset, typename MultiArrayShape<N>::type blockShape, MultiArrayView<N, T, UnstridedArrayTag> & array)
@@ -1400,6 +1455,11 @@ class HDF5File
 
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
+
+            Note that the memory order between VIGRA and HDF5 files differs: VIGRA uses 
+            Fortran-order, while HDF5 uses C-order. This means that a VIGRA MultiArray,
+            whose indices represent the 'x'-, 'y'-, and 'z'-axis in that order, is reversed
+            upon writing to an HDF5 file, i.e. in the file the axis order is 'z', 'y', 'x'. 
         */
     template<unsigned int N, class T>
     inline void createDataset(std::string datasetName, 
@@ -1643,6 +1703,10 @@ class HDF5File
         {
             fclose( pFile );
             fileId = H5Fopen(filePath.c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+        }
+        else if(mode == OpenReadOnly) {
+            fclose( pFile );
+            fileId = H5Fopen(filePath.c_str(), H5F_ACC_RDONLY, H5P_DEFAULT);
         }
         else
         {
@@ -2018,7 +2082,7 @@ class HDF5File
         vigra_precondition(shape == array.shape(),
                            "HDF5File::read(): Array shape disagrees with dataset shape.");
         if (offset)
-            vigra_precondition(dimshape[0] == numBandsOfType,
+            vigra_precondition(dimshape[0] == static_cast<hsize_t>(numBandsOfType),
                                "HDF5File::read(): Band count doesn't match destination array compound type.");
 
         // simply read in the data as is

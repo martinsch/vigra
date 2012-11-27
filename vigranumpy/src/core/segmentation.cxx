@@ -48,7 +48,6 @@
 
 #include <string>
 #include <cmath>
-#include <ctype.h> // tolower()
 
 #include "tws.hxx"
 
@@ -523,8 +522,7 @@ pythonWatersheds2DOld(NumpyArray<2, Singleband<PixelType> > image,
     vigra_precondition(neighborhood == 4 || neighborhood == 8,
            "watersheds2D(): neighborhood must be 4 or 8.");
 
-    for(unsigned int k=0; k<method.size(); ++k)
-        method[k] = (std::string::value_type)tolower(method[k]);
+    method = tolower(method);
     
     bool haveSeeds = seeds.hasData();
     unsigned int maxRegionLabel = 0;
@@ -606,8 +604,7 @@ pythonWatersheds2D(NumpyArray<2, Singleband<PixelType> > image,
     vigra_precondition(neighborhood == 4 || neighborhood == 8,
            "watersheds2D(): neighborhood must be 4 or 8.");
 
-    for(unsigned int k=0; k<method.size(); ++k)
-        method[k] = (std::string::value_type)tolower(method[k]);
+    method = tolower(method);
     if(method == "")
     {
         if(IsSameType<PixelType, npy_uint8>::value)
@@ -645,8 +642,6 @@ pythonWatersheds2D(NumpyArray<2, Singleband<PixelType> > image,
         else
             options.seedOptions(SeedOptions().minima());
     }
-    
-    std::cerr << method << " watershed\n";
     
     if(method == "turbo")
     {
@@ -711,8 +706,7 @@ pythonWatersheds3D(NumpyArray<3, Singleband<PixelType> > image,
     vigra_precondition(neighborhood == 6 || neighborhood == 26,
            "watersheds3D(): neighborhood must be 6 or 26.");
 
-    for(unsigned int k=0; k<method.size(); ++k)
-        method[k] = (std::string::value_type)tolower(method[k]);
+    method = tolower(method);
     
     bool haveSeeds = seeds.hasData();
     unsigned int maxRegionLabel;
@@ -727,8 +721,9 @@ pythonWatersheds3D(NumpyArray<3, Singleband<PixelType> > image,
     
     if(method == "turbo")
     {
-        vigra_precondition((IsSameType<PixelType, npy_uint8>::value),
-           "watersheds3D(): Turbo algorithm requires input dtype = uint8.");
+        vigra_precondition((Or<typename IsSameType<PixelType, npy_uint8>::type,
+                               typename IsSameType<PixelType, float>::type>::value),
+           "watersheds3D(): Turbo algorithm requires input dtype = uint8 or dtype = float.");
         vigra_precondition(neighborhood == 6,
            "watersheds3D(): Turbo algorithm requires neighborhood = 6.");
         vigra_precondition(srgType == CompleteGrow,
@@ -788,7 +783,6 @@ pythonWatersheds3D(NumpyArray<3, Singleband<PixelType> > image,
         {
             if(method == "turbo")
             {
-                std::cerr << "turbo watershed3d\n";
                 res = seeds;
                 
                 TWS<PixelType>::exec(image, res);
@@ -1011,7 +1005,7 @@ void defineSegmentation()
         "      3-dimensional data:\n"
         "        6 (default) or 26\n\n"
         " seeds:\n"
-        "    a label image specifying region seeds, only supported by method 'RegionGrowing' "
+        "    a label image specifying region seeds, only supported by methods 'RegionGrowing' and 'Turbo'"
         "    (with dtype=numpy.uint32).\n" 
         " method:\n"
         "    the algorithm to be used for watershed computation. Possible values:\n\n"
@@ -1056,6 +1050,7 @@ void defineSegmentation()
 
 void defineEdgedetection();
 void defineInterestpoints();
+void defineAccumulators();
 
 } // namespace vigra
 
@@ -1068,4 +1063,5 @@ BOOST_PYTHON_MODULE_INIT(analysis)
     defineSegmentation();
     defineEdgedetection();
     defineInterestpoints();
+    defineAccumulators();
 }

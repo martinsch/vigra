@@ -318,7 +318,7 @@ NumpyAnyArray pythonApplyColortable(const NumpyArray<2, Singleband<T> >& valueIm
     
     const unsigned int N = colortable.shape(0);
    
-    for(size_t c=0; c<colortable.shape(1); ++c)
+    for(MultiArrayIndex c=0; c<colortable.shape(1); ++c)
     {
         MultiArrayView<2, UInt8>::iterator channelIter = res.bind<2>(c).begin();
         
@@ -327,7 +327,7 @@ NumpyAnyArray pythonApplyColortable(const NumpyArray<2, Singleband<T> >& valueIm
         
         for(typename InputType::const_iterator v = valueImage.begin(); v != valueImage.end(); ++v, ++channelIter)
         {
-            *channelIter = ctable[*v % N];
+            const_cast<UInt8 &>(*channelIter) = ctable[*v % N];
         }
     }
     

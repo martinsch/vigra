@@ -45,6 +45,7 @@
 #include <vigra/accumulator.hxx>
 #include <vigra/timing.hxx>
 #include <map>
+#include <vector>
 
 namespace python = boost::python;
 
@@ -87,6 +88,42 @@ struct GetTag_Visitor
             a(k) = t[k];
         return python::object(a);
     }
+
+  template <class T>
+  python::object to_python(std::pair<T*, T*> const & t) const
+  {
+    T* t1 = t.first;
+    T* t2 = t.second;
+    NumpyArray<1, T> a = NumpyArray<1, T>(Shape1(t2 - t1));
+    for (int k = 0; t1 != t2; k++, t1++) {
+      a(k) = *t1;
+    }
+    return python::object(a);
+  }
+
+  template <class T, int N>
+  python::object to_python(std::vector<TinyVector<T, N> > const & t) const
+  {
+    int n = t.size();
+    NumpyArray<2, T> a = NumpyArray<2, T>(Shape2(n, N));
+    for (int i = 0; i < n; i++) {
+      for (int k = 0; k < N; k++) {
+	a(i, k) = t.at(i)[k];
+      }
+    }
+    return python::object(a);
+  }
+
+  template <class T>
+  python::object to_python(std::vector<T> const & t) const
+  {
+    int n = t.size();
+    NumpyArray<1, T> a = NumpyArray<1, T>(Shape1(n));
+    for (int i = 0; i < n; i++) {
+      a(i) = t.at(i);
+    }
+    return python::object(a);
+  }
     
     template <class T, class Stride>
     python::object to_python(MultiArrayView<1, T, Stride> const & t) const
@@ -147,6 +184,29 @@ struct GetArrayTag_Visitor
                 for(int j=0; j<N; ++j)
                     res(k, p(j)) = get<TAG>(a, k)[j];
             return python::object(res);
+        }
+    };
+
+  template <class TAG, class T, int N, class Accu>
+  struct ToPythonArray<TAG, std::vector<TinyVector<T, N> >, Accu>
+    {
+        template <class Permutation>
+        static python::object exec(Accu & a, Permutation const & p)
+        {
+	  unsigned int n = a.regionCount();
+	  python::list result;
+	  
+	  for(unsigned int k=0; k<n; ++k) {
+	    // result.append<python::object>(to_python<T, N>(get<TAG>(a, k)));
+	    // result.append<std::vector<TinyVector<T,N> >(get<TAG>(a, k));
+	    std::vector<TinyVector<T, N> > v = get<TAG>(a,k);
+	    // python::object v = to_python(get<TAG>(a,k));
+	    python::object get_iter = python::iterator<std::vector<TinyVector<T, N> > >();
+	    python::object iter = get_iter(v);
+	    python::list l(iter);
+	    result.append(l);
+	  }
+	  return python::object(result);
         }
     };
     

@@ -197,14 +197,15 @@ struct GetArrayTag_Visitor
 	  python::list result;
 	  
 	  for(unsigned int k=0; k<n; ++k) {
-	    // result.append<python::object>(to_python<T, N>(get<TAG>(a, k)));
-	    // result.append<std::vector<TinyVector<T,N> >(get<TAG>(a, k));
 	    std::vector<TinyVector<T, N> > v = get<TAG>(a,k);
-	    // python::object v = to_python(get<TAG>(a,k));
-	    python::object get_iter = python::iterator<std::vector<TinyVector<T, N> > >();
-	    python::object iter = get_iter(v);
-	    python::list l(iter);
-	    result.append(l);
+	    unsigned int n = v.size();
+	    NumpyArray<2, T> points(Shape2(n, N));
+	    for (unsigned int i = 0; i < n; i++) {
+	      for (int k = 0; k < N; k++) {
+		points(i, k) = v.at(i)[k];
+	      }
+	    }
+	    result.append(points);
 	  }
 	  return python::object(result);
         }

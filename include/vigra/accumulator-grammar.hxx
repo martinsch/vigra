@@ -56,7 +56,7 @@ namespace acc {
    
 class CoordinateSystem;                        // returns an identity matrix of appropriate size
 
-class ValueList;                               // try to extract coordinates
+class ValueList;                               // extract pixel values into list. Only useful if used in conjunction with Coord
 
 template <unsigned N> class PowerSum;          // sum over powers of values
 template <unsigned N> class AbsPowerSum;       // sum over powers of absolute values

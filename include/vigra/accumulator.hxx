@@ -2793,18 +2793,6 @@ struct AccumulatorResultTraits<MultiArray<N, T, Alloc> >
     typedef Matrix<element_promote_type>            CovarianceType;
 };
 
-/*template <class T, int N>
-struct AccumulatorResultTraits<std::vector<TinyVector<T, N> > >
-{
-  typedef std::vector<TinyVector<T, N> >               type;
-  typedef T                                            element_type;
-  typedef double                                       element_promote_type;
-  typedef TinyVector<T, N>                             MinmaxType;
-  typedef TinyVector<element_promote_type, N>          SumType;
-  typedef TinyVector<element_promote_type, N*(N+1)/2>  FlatCovarianceType;
-  typedef Matrix<element_promote_type>                 CovarianceType;
-}; */
-
 /****************************************************************************/
 /*                                                                          */
 /*                           modifier implementations                       */

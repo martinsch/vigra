@@ -55,9 +55,12 @@ void defineSinglebandRegionAccumulators()
                    Weighted<RegionCenter>, Weighted<RegionRadii>, Weighted<RegionAxes>,
                    Select<Coord<Minimum>, Coord<Maximum>, Coord<ArgMinWeight>, Coord<ArgMaxWeight>, 
                           Principal<Coord<Skewness> >, Principal<Coord<Kurtosis> >, 
-                          Principal<Weighted<Coord<Skewness> > >, Principal<Weighted<Coord<Kurtosis> > > >,
+                          Principal<Weighted<Coord<Skewness> > >, Principal<Weighted<Coord<Kurtosis> > >, Coord<ValueList>
+			  //ValueList//, Coord<ValueList>
+			  >,
                    DataArg<1>, WeightArg<1>, LabelArg<2>
-                   > ScalarRegionAccumulators;
+                   > ScalarRegionAccumulators; 
+    // typedef Select<Mean /*Coord<ValueList>*/ > ScalarRegionAccumulators;
     definePythonAccumulatorArraySingleband<2, float, ScalarRegionAccumulators>();
     definePythonAccumulatorArraySingleband<3, float, ScalarRegionAccumulators>();
 }

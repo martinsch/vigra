@@ -701,7 +701,8 @@ fftEmbedKernel(MultiArrayView<N, Real, C1> kernel,
 template <unsigned int N, class Real, class C1, class C2>
 void 
 fftEmbedArray(MultiArrayView<N, Real, C1> in,
-              MultiArrayView<N, Real, C2> out)
+              MultiArrayView<N, Real, C2> out,
+              bool zeroPadding=false)
 {
     typedef typename MultiArrayShape<N>::type Shape;
     
@@ -710,8 +711,14 @@ fftEmbedArray(MultiArrayView<N, Real, C1> in,
           rightDiff = diff - leftDiff,
           right = in.shape() + leftDiff; 
     
+    out.init(0.);
     out.subarray(leftDiff, right) = in;
-    
+    if (zeroPadding)
+//    	cout << "zeroPadding is true" << endl;
+        return;
+
+//	cout << "zeroPadding is false" << endl;
+
     typedef typename MultiArrayView<N, Real, C2>::traverser Traverser;
     typedef MultiArrayNavigator<Traverser, N> Navigator;
     typedef typename Navigator::iterator Iterator;
@@ -1162,6 +1169,7 @@ class FFTWConvolvePlan
     RArray realArray, realKernel;
     CArray fourierArray, fourierKernel;
     bool useFourierKernel;
+    bool zeroPadding;
 
   public:
   
@@ -1172,7 +1180,7 @@ class FFTWConvolvePlan
             The plan can be initialized later by one of the init() functions.
         */
     FFTWConvolvePlan()
-    : useFourierKernel(false)
+    : useFourierKernel(false), zeroPadding(false)
     {}
     
         /** \brief Create a plan to convolve a real array with a real kernel.
@@ -1191,11 +1199,22 @@ class FFTWConvolvePlan
                      MultiArrayView<N, Real, C2> kernel,
                      MultiArrayView<N, Real, C3> out,
                      unsigned int planner_flags = FFTW_ESTIMATE)
-    : useFourierKernel(false)
+    : useFourierKernel(false), zeroPadding(false)
     {
         init(in, kernel, out, planner_flags);
     }
     
+    template <class C1, class C2, class C3>
+    FFTWConvolvePlan(MultiArrayView<N, Real, C1> in, 
+                     MultiArrayView<N, Real, C2> kernel,
+                     MultiArrayView<N, Real, C3> out,
+                     bool zeroPadding,
+                     unsigned int planner_flags = FFTW_ESTIMATE)
+    : useFourierKernel(false), zeroPadding(zeroPadding)
+    {
+        init(in, kernel, out, planner_flags);
+    }
+
         /** \brief Create a plan to convolve a real array with a complex kernel.
         
             The kernel must be defined in the Fourier domain, using the half-space format. 
@@ -1212,7 +1231,7 @@ class FFTWConvolvePlan
                      MultiArrayView<N, FFTWComplex<Real>, C2> kernel,
                      MultiArrayView<N, Real, C3> out,
                      unsigned int planner_flags = FFTW_ESTIMATE)
-    : useFourierKernel(true)
+    : useFourierKernel(true), zeroPadding(false)
     {
         init(in, kernel, out, planner_flags);
     }
@@ -1256,6 +1275,7 @@ class FFTWConvolvePlan
     FFTWConvolvePlan(Shape inOut, Shape kernel, 
                      bool useFourierKernel = false,
                      unsigned int planner_flags = FFTW_ESTIMATE)
+    : zeroPadding(false)
     {
         if(useFourierKernel)
             init(inOut, kernel, planner_flags);
@@ -1627,7 +1647,7 @@ FFTWConvolvePlan<N, Real>::execute(MultiArrayView<N, Real, C1> in,
     vigra_precondition(paddedShape == realArray.shape(),
        "FFTWConvolvePlan::execute(): shape mismatch between input and plan.");
 
-    detail::fftEmbedArray(in, realArray);
+    detail::fftEmbedArray(in, realArray, zeroPadding);
     forward_plan.execute(realArray, fourierArray);
 
     detail::fftEmbedKernel(kernel, realKernel);
@@ -1664,7 +1684,7 @@ FFTWConvolvePlan<N, Real>::execute(MultiArrayView<N, Real, C1> in,
     vigra_precondition(paddedShape == realArray.shape(),
        "FFTWConvolvePlan::execute(): shape mismatch between input and plan.");
 
-    detail::fftEmbedArray(in, realArray);
+    detail::fftEmbedArray(in, realArray, zeroPadding);
     forward_plan.execute(realArray, fourierArray);
 
     fourierKernel = kernel;
@@ -1706,7 +1726,7 @@ FFTWConvolvePlan<N, Real>::execute(MultiArrayView<N, FFTWComplex<Real>, C1> in,
         forward_plan.execute(fourierKernel, fourierKernel);
     }
 
-    detail::fftEmbedArray(in, fourierArray);
+    detail::fftEmbedArray(in, fourierArray, zeroPadding);
     forward_plan.execute(fourierArray, fourierArray);
 
     fourierArray *= fourierKernel;
@@ -1735,7 +1755,7 @@ FFTWConvolvePlan<N, Real>::executeManyImpl(MultiArrayView<N, Real, C1> in,
     vigra_precondition(paddedShape == realArray.shape(),
        "FFTWConvolvePlan::executeMany(): shape mismatch between input and plan.");
 
-    detail::fftEmbedArray(in, realArray);
+    detail::fftEmbedArray(in, realArray, zeroPadding);
     forward_plan.execute(realArray, fourierArray);
 
     for(; kernels != kernelsEnd; ++kernels, ++outs)
@@ -1773,7 +1793,7 @@ FFTWConvolvePlan<N, Real>::executeManyImpl(MultiArrayView<N, Real, C1> in,
     vigra_precondition(paddedShape == realArray.shape(),
        "FFTWConvolvePlan::executeFourierKernelMany(): shape mismatch between input and plan.");
 
-    detail::fftEmbedArray(in, realArray);
+    detail::fftEmbedArray(in, realArray, zeroPadding);
     forward_plan.execute(realArray, fourierArray);
 
     for(; kernels != kernelsEnd; ++kernels, ++outs)
@@ -1810,7 +1830,7 @@ FFTWConvolvePlan<N, Real>::executeMany(MultiArrayView<N, FFTWComplex<Real>, C1> 
           left = div(diff, MultiArrayIndex(2)),
           right = in.shape() + left;
           
-    detail::fftEmbedArray(in, fourierArray);
+    detail::fftEmbedArray(in, fourierArray, zeroPadding);
     forward_plan.execute(fourierArray, fourierArray);
 
     for(; kernels != kernelsEnd; ++kernels, ++outs)

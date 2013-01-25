@@ -714,10 +714,7 @@ fftEmbedArray(MultiArrayView<N, Real, C1> in,
     out.init(0.);
     out.subarray(leftDiff, right) = in;
     if (zeroPadding)
-//    	cout << "zeroPadding is true" << endl;
         return;
-
-//	cout << "zeroPadding is false" << endl;
 
     typedef typename MultiArrayView<N, Real, C2>::traverser Traverser;
     typedef MultiArrayNavigator<Traverser, N> Navigator;

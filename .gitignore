@@ -1,3 +1,7 @@
+.cproject
+.project
+.pydevproject
+CMakeCache.txt
 
 /lib/
 /bin/

@@ -235,8 +235,7 @@ struct GetArrayTag_Visitor
 	  return python::object(result);
         }
     }; */
-=======
->>>>>>> b18b6605513f879d27f85303de8ff34ac2355118
+
     
     template <class TAG, class T, class Alloc, class Accu>
     struct ToPythonArray<TAG, MultiArray<1, T, Alloc>, Accu>

@@ -198,9 +198,9 @@ struct GetArrayTag_Visitor
 	  
 	  for(unsigned int k=0; k<n; ++k) {
 	    std::vector<TinyVector<T, N> > v = get<TAG>(a,k);
-	    unsigned int n = v.size();
-	    NumpyArray<2, T> points(Shape2(n, N));
-	    for (unsigned int i = 0; i < n; i++) {
+	    unsigned int q = v.size();
+	    NumpyArray<2, T> points(Shape2(q, N));
+	    for (unsigned int i = 0; i < q; ++i) {
 	      for (int k = 0; k < N; k++) {
 		points(i, k) = v.at(i)[k];
 	      }
@@ -210,6 +210,31 @@ struct GetArrayTag_Visitor
 	  return python::object(result);
         }
     };
+
+  /* template <class TAG, class T, int N, class Accu>
+  struct ToPythonArray<TAG, std::vector<TinyVector<T, N> >, Accu>
+    {
+        template <class Permutation>
+        static python::object exec(Accu & a, Permutation const & p)
+        {
+	  unsigned int n = a.regionCount();
+	  // python::list result;
+          NumpyArray<1
+	  
+	  for(unsigned int k=0; k<n; ++k) {
+	    std::vector<TinyVector<T, N> > v = get<TAG>(a,k);
+	    unsigned int j = v.size();
+	    NumpyArray<2, T> points(Shape2(j, N));
+	    for (unsigned int i = 0; i < n; ++i) {
+	      for (int k = 0; k < N; k++) {
+		points(i, k) = v.at(i)[k];
+	      }
+	    }
+	    result.append(points);
+	  }
+	  return python::object(result);
+        }
+    }; */
     
     template <class TAG, class T, class Alloc, class Accu>
     struct ToPythonArray<TAG, MultiArray<1, T, Alloc>, Accu>

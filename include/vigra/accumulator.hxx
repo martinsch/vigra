@@ -55,6 +55,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include <vector>
+
 namespace vigra {
   
 /** \defgroup FeatureAccumulators Feature Accumulators
@@ -2752,7 +2754,7 @@ struct AccumulatorResultTraits<TinyVector<T, N> >
     typedef Matrix<element_promote_type>                 CovarianceType;
 };
 
-// (?) beign change
+// (?) begin change
 template <class T, unsigned int RED_IDX, unsigned int GREEN_IDX, unsigned int BLUE_IDX>
 struct AccumulatorResultTraits<RGBValue<T, RED_IDX, GREEN_IDX, BLUE_IDX> >
 {
@@ -3467,6 +3469,57 @@ struct SumBaseImpl
         return value_;
     }
 };
+
+// Put Pixel Values into list
+// not generic
+class ValueList
+{
+public:
+  typedef Select<> Dependencies;
+
+  static std::string name()
+  {
+    return "ValueList";
+  }
+
+  template <class U, class BASE>
+  struct Impl
+  : public BASE
+  {
+    typedef std::vector<U>      value_type;
+    typedef value_type const &  result_type;
+    value_type pixels_;
+    Impl() : pixels_() {}
+
+    void reset()
+    {
+      value_type().swap(pixels_);
+    }
+
+    template <class Shape>
+    void reshape(Shape const & s)
+    {
+      detail::reshapeImpl(pixels_, s);
+      }
+
+    void update(U const & t)
+    {
+      this->pixels_.push_back(t);
+    }
+
+    void update(U const & t, double weight)
+    {
+      this->update(t);
+    }
+    
+    result_type operator()() const
+    {
+      return this->pixels_;
+    }    
+  };
+};
+      
+    
 
 // Count
 template <>

@@ -67,6 +67,7 @@ AliasMap defineAliasMap()
     res["Weighted<Coord<DivideByCount<PowerSum<1> > > >"] = "Weighted<RegionCenter>";
     res["Weighted<Coord<RootDivideByCount<Principal<PowerSum<2> > > > >"] = "Weighted<RegionRadii>";
     res["Weighted<Coord<Principal<CoordinateSystem> > >"] = "Weighted<RegionAxes>";
+    // res["Coord<ValueList>"] = "CoordList";
     return res;
 }
 
@@ -123,8 +124,7 @@ void defineGlobalAccumulators()
     typedef Select<Count, Mean, Variance, Skewness, Kurtosis, Covariance, 
                    Principal<Variance>, Principal<Skewness>, Principal<Kurtosis>,
                    Principal<CoordinateSystem>,
-                   Minimum, Maximum, Principal<Minimum>, Principal<Maximum>
-                   > VectorAccumulators;
+                   Minimum, Maximum, Principal<Minimum>, Principal<Maximum> > VectorAccumulators;
 
     definePythonAccumulatorMultiband<3, float, VectorAccumulators>();
     definePythonAccumulatorMultiband<4, float, VectorAccumulators>();
@@ -133,8 +133,9 @@ void defineGlobalAccumulators()
 
     typedef Select<Count, Mean, Variance, Skewness, Kurtosis, 
                    UnbiasedVariance, UnbiasedSkewness, UnbiasedKurtosis,
-                   Minimum, Maximum, StandardQuantiles<AutoRangeHistogram<0> > 
-                   > ScalarAccumulators;
+                   Minimum, Maximum, StandardQuantiles<AutoRangeHistogram<0> >,
+		   ValueList
+		   > ScalarAccumulators;
     definePythonAccumulatorSingleband<float, ScalarAccumulators>();
 }
 

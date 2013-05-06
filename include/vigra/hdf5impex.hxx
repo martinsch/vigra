@@ -673,20 +673,7 @@ class HDF5File
          */
     inline void cd(std::string groupName)
     {
-        std::string message = "HDF5File::cd(): Could not open group '" + groupName + "'.\n";
-
-        // make groupName clean
-        groupName = get_absolute_path(groupName);
-
-        if(groupName == "/")
-        {
-            cGroupHandle_ = HDF5Handle(openCreateGroup_("/"),&H5Gclose,message.c_str());
-        }
-        else
-        {
-            vigra_precondition(H5Lexists(fileHandle_, groupName.c_str(), H5P_DEFAULT) != 0, message);
-            cGroupHandle_ = HDF5Handle(openCreateGroup_(groupName),&H5Gclose,message.c_str());
-        }
+        cGroupHandle_ = getGroupHandle(groupName, "HDF5File::cd()");
     }
 
         /** \brief Change the current group to its parent group.
@@ -881,15 +868,15 @@ class HDF5File
 
         /** \brief Obtain the HDF5 handle of a group.
          */
-    inline HDF5Handle getGroupHandle(std::string group_name)
+    inline HDF5Handle getGroupHandle(std::string group_name, std::string function_name = "HDF5File::getGroupHandle()")
     {
-        std::string errorMessage = "HDF5File::getGroupHandle(): Group '" + group_name + "' not found.";
+        std::string errorMessage = function_name + ": Group '" + group_name + "' not found.";
 
         // make group_name clean
         group_name = get_absolute_path(group_name);
 
         // group must exist
-        vigra_precondition(H5Lexists(fileHandle_, group_name.c_str(), H5P_DEFAULT) == 1, 
+        vigra_precondition(group_name == "/" || H5Lexists(fileHandle_, group_name.c_str(), H5P_DEFAULT) != 0, 
                            errorMessage.c_str());
 
         // open group and return group handle
@@ -1059,7 +1046,11 @@ class HDF5File
             Chunks can be activated by setting 
             \code iChunkSize = size; //size \> 0 
             \endcode .
-            The chunks will be hypercubes with edge length size.
+            The chunks will be hypercubes with edge length size. When <tt>iChunkSize == 0</tt>
+            (default), the behavior depends on the <tt>compression</tt> setting: If no
+            compression is requested, the data is written without chunking. Otherwise,
+            chuning is required, and the chunk size is automatically selected such that
+            each chunk contains about 300k pixels.
 
             Compression can be activated by setting 
             \code compression = parameter; // 0 \< parameter \<= 9 
@@ -1115,14 +1106,6 @@ class HDF5File
 
         /** \brief Write a multi array into a larger volume.
             blockOffset determines the position, where array is written.
-
-            Chunks can be activated by providing a MultiArrayShape as chunkSize.
-            chunkSize must have equal dimension as array.
-
-            Compression can be activated by setting 
-            \code compression = parameter; // 0 \< parameter \<= 9 
-            \endcode
-            where 0 stands for no compression and 9 for maximum compression.
 
             If the first character of datasetName is a "/", the path will be interpreted as absolute path,
             otherwise it will be interpreted as path relative to the current group.
@@ -1946,9 +1929,13 @@ class HDF5File
         HDF5Handle attr_dataspace_handle (H5Aget_space(attr_handle),&H5Sclose,message.c_str());
 
         // obtain Attribute shape
-        int dims = H5Sget_simple_extent_ndims(attr_dataspace_handle);
+        int raw_dims = H5Sget_simple_extent_ndims(attr_dataspace_handle);
+        int dims = std::max(raw_dims, 1); // scalar attributes may be stored with raw_dims==0
         ArrayVector<hsize_t> dimshape(dims);
-        H5Sget_simple_extent_dims(attr_dataspace_handle, dimshape.data(), NULL);
+        if(raw_dims > 0)
+            H5Sget_simple_extent_dims(attr_dataspace_handle, dimshape.data(), NULL);
+        else
+            dimshape[0] = 1;
         
         // invert the dimensions to guarantee VIGRA-compatible order
         std::reverse(dimshape.begin(), dimshape.end());
@@ -1960,12 +1947,9 @@ class HDF5File
         // the object in the HDF5 file may have one additional dimension which we then interpret as the pixel type bands
         vigra_precondition((N + offset) == MultiArrayIndex(dims), message);
 
-        typename MultiArrayShape<N>::type shape;
         for(int k=offset; k < (int)dimshape.size(); ++k)
-            shape[k-offset] = (MultiArrayIndex)dimshape[k];
-
-        message = "Error: Array shape disagrees with dataset shape";
-        vigra_precondition(shape == array.shape(), message);
+            vigra_precondition(array.shape()[k-offset] == (MultiArrayIndex)dimshape[k],
+                               "Error: Array shape disagrees with dataset shape");
 
         // simply read in the data as is
         H5Aread( attr_handle, datatype, array.data());
@@ -2039,6 +2023,22 @@ class HDF5File
         {
             ArrayVector<hsize_t> cSize(chunkSize.begin(), chunkSize.end());
             std::reverse(cSize.begin(), cSize.end());
+            if(numBandsOfType > 1)
+                cSize.push_back(numBandsOfType);
+            
+            H5Pset_chunk (plist, cSize.size(), cSize.begin());
+        }
+        else if(compressionParameter > 0)
+        {
+            // set default chunks to enable compression 
+            // (arbitrarily include about 300k pixels into each chunk, but make sure
+            //  that the chunk size doesn't exceed the shape)
+            ArrayVector<hsize_t> cSize(array.shape().begin(), array.shape().end());
+            std::reverse(cSize.begin(), cSize.end());
+            hsize_t chunk_length = (hsize_t)std::pow(300000.0, 1.0 / N);
+            for(int k=0; k < N; ++k)
+                if(cSize[k] > chunk_length)
+                    cSize[k] = chunk_length;
             if(numBandsOfType > 1)
                 cSize.push_back(numBandsOfType);
             

@@ -493,7 +493,7 @@ struct PythonAccumulator
     
     bool isActive(std::string const & tag) const
     {
-        detail::TagIsActive_Visitor v;
+        acc_detail::TagIsActive_Visitor v;
         vigra_precondition(this->isActiveImpl(resolveAlias(tag), v), 
                            "FeatureAccumulator::isActive(): Tag '" + tag + "' not found.");
         return v.result;
@@ -521,7 +521,7 @@ struct PythonAccumulator
         GetVisitor v(permutation_);
         
         vigra_precondition(isActive(tag), "FeatureAccumulator::get(): Tag '" + tag + "' is not active.");
-        detail::ApplyVisitorToTag<AccumulatorTags>::exec((BaseType &)*this, resolveAlias(tag), v);
+        acc_detail::ApplyVisitorToTag<AccumulatorTags>::exec((BaseType &)*this, resolveAlias(tag), v);
         return v.result;
     }
     

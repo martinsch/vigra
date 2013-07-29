@@ -3654,7 +3654,7 @@ public:
     template <class Shape>
     void reshape(Shape const & s)
     {
-      detail::reshapeImpl(pixels_, s);
+      acc_detail::reshapeImpl(pixels_, s);
       }
 
     void update(U const & t)
